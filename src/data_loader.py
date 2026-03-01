@@ -63,6 +63,24 @@ class FreshSenseDataset(Dataset):
             dataset = FreshSenseDataset('data/train', transform=my_transforms)
         """
         
+        #Store directory + Transforms
+        self.root_dir = root_dir
+        self.transform = transform
+        
+        # Default class names
+        self.class_names = class_names or ['fresh', 'spoiled']
+        
+        # Map class names to numeric labels
+        self.class_to_idx = {
+            name: idx for idx, name in enumerate(self.class_names)
+        }
+        
+        # List of img path / label
+        self.samples = []
+        
+        # Load img path + label
+        self._load_samples()
+        
     
     def _load_samples(self):
         """
@@ -154,6 +172,41 @@ def get_transforms(image_size: int = 224, augment: bool = True):
     Returns:
         Tuple of (train_transform, val_transform)
     """
+    
+    #Normalization
+    imagenet_mean = [0.485, 0.456, 0.406]
+    imagenet_std = [0.229, 0.224, 0.225]
+    
+    # Training transforms
+    if augment:
+        train_transform = transforms.Compose([
+            transforms.Resize((image_size, image_size)),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomRotation(10),
+            transforms.ColorJitter(
+                brightness = 0.2,
+                contrast = 0.2,
+                saturation = 0.2
+            ),
+            transforms.ToTensor(),
+            transforms.Normalize(imagenet_mean, imagenet_std)
+        ])
+        
+    else:
+        train_transform = transforms.Compose([
+            transforms.Resize((image_size, image_size)),
+            transforms.ToTensor(),
+            transforms.Normalize(imagenet_mean, imagenet_std)
+        ])
+        
+    # Validation + test transforms (NO augmentation)
+    val_transform = transforms.Compose([
+        transforms.Resize((image_size, image_size)),
+        transforms.ToTensor(),
+        transforms.Normalize(imagenet_mean, imagenet_std)
+    ])
+    
+    return train_transform, val_transform
 
 
 def get_dataloaders(
