@@ -241,4 +241,26 @@ def compute_mean_std(data_dir: str, image_size: int = 224):
         Tuple of (mean, std) as numpy arrays, shape (3,) for RGB channels
         Example: mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225]
     """
+    transform = transforms.Compose([
+        transforms.Resize((image_size, image_size)),
+        transforms.ToTensor()
+    ])
     
+    dataset = FreshSenseDataset(data_dir, transform=transform)
+    loader = DataLoader(dataset, batch_size=64, num_workers=4)
+    
+    mean = torch.zeros(3)
+    std = torch.zeros(3)
+    total_images = 0
+    
+    for images, _ in loader:
+        batch_samples = images.size(0)
+        images = images.view(batch_samples, images.size(1), -1)
+        mean += images.mean(2).sum(0)
+        std += images.std(2).sum(0)
+        total_images += batch_samples
+    
+    mean /= total_images
+    std /= total_images
+    
+    return mean.numpy(), std.numpy()
