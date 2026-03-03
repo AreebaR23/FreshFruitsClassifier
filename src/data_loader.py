@@ -23,6 +23,7 @@ from typing import Tuple, Optional
 import numpy as np
 
 
+
 class FreshSenseDataset(Dataset):
     """
     Custom PyTorch Dataset for fresh/spoiled food classification.
@@ -44,6 +45,7 @@ class FreshSenseDataset(Dataset):
     """
     
     def __init__(self, root_dir: str, transform=None, class_names=None):
+
         """
         Initialize the dataset by scanning the directory structure.
         
@@ -84,9 +86,23 @@ class FreshSenseDataset(Dataset):
             ...
         ]
         """
+        self.samples = []
+
+        for class_name, label in self.class_to_idx.items():
+            class_dir = os.path.join(self.root_dir, class_name)
+            if not os.path.isdir(class_dir):
+                continue
+
+            for fname in os.listdir(class_dir):
+                if fname.lower().endswith(('.jpg', '.jpeg', '.png')):
+                    fp = os.path.join(class_dir, fname)
+                    self.samples.append((fp, label))
+
+
         
     
     def __len__(self):
+        ##Areeba
         """
         Return the total number of samples in the dataset.
         
@@ -98,6 +114,7 @@ class FreshSenseDataset(Dataset):
         return len(self.samples)
     
     def __getitem__(self, idx):
+        ##Areeba
         """
         Load and return a single sample (image, label) at the given index.
         
@@ -117,9 +134,18 @@ class FreshSenseDataset(Dataset):
         
         Called by PyTorch DataLoader during training/validation batching.
         """
+        img_path, label = self.samples[idx]
+        img = Image.open(img_path)
+        img = img.convert('RGB')
+        if self.transform is not None:
+            img = self.transform(img)
+        
+        return img, label
+
 
 
 def get_transforms(image_size: int = 224, augment: bool = True):
+    
     """
     Create transformation pipelines for training and validation data.
     
@@ -164,6 +190,7 @@ def get_dataloaders(
     num_workers: int = 4,
     pin_memory: bool = True
 ) -> Tuple[DataLoader, DataLoader, DataLoader]:
+    ##Areeba
     """
     Create PyTorch DataLoader objects for train, validation, and test sets.
     
@@ -205,6 +232,33 @@ def get_dataloaders(
     Returns:
         Tuple of (train_loader, val_loader, test_loader)
     """
+
+    #Get Transform Pipleines
+    train_tf, val_tf = get_transforms(image_size= image_size, augment=augment)
+
+    train_dir = os.path.join(data_dir, 'train')
+    test_dir = os.path.join(data_dir, 'test')
+    val_dir = os.path.join(data_dir, 'val')
+
+    train_ds = FreshSenseDataset(root_dir=train_dir, transform=train_tf)
+    test_ds = FreshSenseDataset(root_dir=test_dir, transform=val_tf)
+    val_ds = FreshSenseDataset(root_dir=val_dir, transform = val_tf)
+
+    train_loader = DataLoader(train_ds, batch_size = batch_size, 
+                              shuffle = True, num_workers = num_workers, 
+                              pin_memory=pin_memory)
+    
+    test_loader = DataLoader(test_ds, batch_size = batch_size, 
+                              shuffle = False, num_workers = num_workers, 
+                              pin_memory=pin_memory)
+    
+    val_loader = DataLoader(val_ds, batch_size = batch_size, 
+                              shuffle = False, num_workers = num_workers, 
+                              pin_memory=pin_memory)
+    
+    return (train_loader, val_loader, test_loader)
+
+
 
 
 def compute_mean_std(data_dir: str, image_size: int = 224):
