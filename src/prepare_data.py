@@ -96,9 +96,64 @@ def main():
     5. Clean up the temp directory to save space.
     6. Print completion message.
     """
+    parser = argparse.ArgumentParser(description='Prepare FreshSense dataset')
+    parser.add_argument('--raw_dir', type=str, default='data/raw',
+                       help='Directory containing raw Kaggle datasets')
+    parser.add_argument('--processed_dir', type=str, default='data/processed',
+                       help='Output directory for processed data')
+    parser.add_argument('--train_ratio', type=float, default=0.7,
+                       help='Training set ratio')
+    parser.add_argument('--val_ratio', type=float, default=0.15,
+                       help='Validation set ratio')
+    parser.add_argument('--test_ratio', type=float, default=0.15,
+                       help='Test set ratio')
+    parser.add_argument('--seed', type=int, default=42,
+                       help='Random seed')
+    parser.add_argument('--max_samples', type=int, default=None,
+                       help='Maximum samples per class (for smaller machines)')
+    
+    args = parser.parse_args()
 
-    create_directory_structure(r'C:\Users\binom\OneDrive\Desktop\FreshFruits\FreshFruitsClassifier\data')
+    # Resolve paths relative to repo root when given as relative paths
+    repo_root = Path(__file__).resolve().parents[1]
+    raw_dir = Path(args.raw_dir)
+    processed_dir = Path(args.processed_dir)
+    if not raw_dir.is_absolute():
+        if '..' in raw_dir.parts:
+            raw_dir = (Path.cwd() / raw_dir).resolve()
+        else:
+            raw_dir = (repo_root / raw_dir).resolve()
+    if not processed_dir.is_absolute():
+        if '..' in processed_dir.parts:
+            processed_dir = (Path.cwd() / processed_dir).resolve()
+        else:
+            processed_dir = (repo_root / processed_dir).resolve()
+    
+    # Creating directory structure
+    create_directory_structure(str(processed_dir.parent))
+    
+    # Organizing Kaggle dataset
+    print("Organizing Kaggle dataset...")
+    temp_dir = organize_kaggle_dataset(str(raw_dir), str(processed_dir))
+    
+    # Splitting into train/val/test
+    print("\nSplitting dataset...")
+    split_dataset(
+        temp_dir,
+        str(processed_dir),
+        args.train_ratio,
+        args.val_ratio,
+        args.test_ratio,
+        args.seed,
+        args.max_samples
+    )
+    
+    # Cleaning up temporary directory
+    shutil.rmtree(temp_dir)
+    
+    print("\nDataset preparation complete!")
 
+    # create_directory_structure(r'C:\Users\binom\OneDrive\Desktop\FreshFruits\FreshFruitsClassifier\data')
 
 if __name__ == '__main__':
     main()
