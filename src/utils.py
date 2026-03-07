@@ -19,14 +19,27 @@ def set_seed(seed: int = 42):
        to reduce nondeterminism across runs.
     """
 
+    random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    np.random.seed(seed)
+
+    
+
+
+
 
 def save_checkpoint(model, optimizer, epoch, val_acc, path):
     """Save model checkpoint.
     
     Steps for implementation:
-    1. Create a dict with epoch, model_state_dict, optimizer_state_dict, val_acc.
+    1. Create a dict with epoch, model_state_dict (model.state_dict() for torchvision models), optimizer_state_dict, val_acc.
     2. Serialize to disk with torch.save at the given path.
     """
+    checkpoint = {'epoch': epoch, 'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict(), 'val_acc': val_acc}
+    torch.save(checkpoint, path)
 
 
 def load_checkpoint(model, path, device, optimizer=None):

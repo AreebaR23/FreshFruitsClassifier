@@ -19,6 +19,20 @@ def create_directory_structure(base_dir: str):
     3. Use os.makedirs(..., exist_ok=True) to create all directories safely.
     4. Print a summary so the user knows where outputs were created.
     """
+    splits = ['train', 'test', 'val']
+    classes = ['fresh', 'spoiled']
+    p = os.path.join(base_dir, "processed")
+    if(os.path.isdir(p) == False):
+        os.mkdir(p)
+
+    for s in splits:
+        for c in classes:
+            path = os.path.join(p, s, c)
+            os.makedirs(path, exist_ok=True)
+    
+    print('Output directory located in ', p)
+    
+    
 
 
 def split_dataset(
@@ -51,6 +65,7 @@ def split_dataset(
         test_ratio: Proportion of data for testing
         seed: Random seed for reproducibility
     """
+    pass
    
 def organize_kaggle_dataset(raw_dir: str, processed_dir: str):
     """
@@ -67,6 +82,7 @@ def organize_kaggle_dataset(raw_dir: str, processed_dir: str):
          - Rename files to avoid name collisions.
      4. Return temp_dir so it can be split into train/val/test.
     """
+    pass
 
 def main():
     """
@@ -80,6 +96,8 @@ def main():
     5. Clean up the temp directory to save space.
     6. Print completion message.
     """
+
+    create_directory_structure(r'C:\Users\binom\OneDrive\Desktop\FreshFruits\FreshFruitsClassifier\data')
 
 
 if __name__ == '__main__':
