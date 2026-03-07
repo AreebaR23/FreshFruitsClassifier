@@ -7,7 +7,6 @@ import random
 import numpy as np
 import torch
 
-
 def set_seed(seed: int = 42):
     """Set random seed for reproducibility.
     
@@ -25,11 +24,6 @@ def set_seed(seed: int = 42):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     np.random.seed(seed)
-
-    
-
-
-
 
 def save_checkpoint(model, optimizer, epoch, val_acc, path):
     """Save model checkpoint.
@@ -54,8 +48,6 @@ def load_checkpoint(model, path, device, optimizer=None):
     6. Return the updated model.
     """
 
-
-
 def get_lr(optimizer):
     """Get current learning rate from optimizer.
     
@@ -63,7 +55,8 @@ def get_lr(optimizer):
     1. Iterate over optimizer.param_groups (usually one group).
     2. Return the 'lr' value from the first param group.
     """
-    
+    for param_group in optimizer.param_groups:
+        return param_group['lr']
 
 class AverageMeter:
     """Computes and stores the average and current value."""
