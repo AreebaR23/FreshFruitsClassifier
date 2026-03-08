@@ -47,6 +47,16 @@ def load_checkpoint(model, path, device, optimizer=None):
     5. Optionally print the saved epoch and val accuracy for traceability.
     6. Return the updated model.
     """
+    checkpoint = torch.load(path, map_location=device)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    
+    if optimizer is not None:
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        
+    model.to(device)
+    model.eval()
+    
+    return model
 
 def get_lr(optimizer):
     """Get current learning rate from optimizer.
