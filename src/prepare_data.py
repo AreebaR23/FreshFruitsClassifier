@@ -65,7 +65,56 @@ def split_dataset(
         test_ratio: Proportion of data for testing
         seed: Random seed for reproducibility
     """
-    pass
+    random.seed(seed)
+    
+    # Define classes
+    classes = ['fresh', 'spoiled']
+    allowed_ext = ('.jpg', '.jpeg', '.png')
+    
+    for cls in classes:
+        class_dir = os.path.join(source_dir, cls)
+        
+        # List images w/allowed extensions
+        images = [
+            f for f in os.listdir(class_dir)
+            if f.lower().endswith(allowed_ext)
+        ]
+        
+        # Limit dataset size if needed
+        if max_samples_per_class:
+            images = images[:max_samples_per_class]
+        
+        # Shuffle images before splitting to randomize
+        random.shuffle(images)
+        
+        total = len(images)
+        
+        # Compute number of images for each split
+        train_count = int(total * train_ratio)
+        val_count = int(total * val_ratio)
+        
+        # Slice lists to create each split
+        train_files = images[:train_count]
+        val_files = images[train_count:train_count + val_count]
+        test_files = images[train_count + val_count:]
+
+        # Create dictionary for easier iteration
+        splits = {
+            "train": train_files,
+            "val": val_files,
+            "test": test_files
+        }
+        
+        # Copy files to respective processed dirs
+        for split_name, file_list in splits.items():
+            for file in file_list:
+                src = os.path.join(class_dir, file)
+                dst = os.path.join(dest_dir, split_name, cls, file)
+                
+                shutil.copy2(src, dst)
+            
+        # Print summary for this cls/iteration
+        print(f"{cls}: train = {len(train_files)}, val = {len(val_files)}, test = {len(test_files)}")
    
 def organize_kaggle_dataset(raw_dir: str, processed_dir: str):
     """
@@ -82,7 +131,45 @@ def organize_kaggle_dataset(raw_dir: str, processed_dir: str):
          - Rename files to avoid name collisions.
      4. Return temp_dir so it can be split into train/val/test.
     """
-    pass
+    
+    # Create temp folders to hold all images sorted by class
+    temp_dir = os.path.join(processed_dir, "temp")
+    fresh_dir = os.path.join(temp_dir, "fresh")
+    spoiled_dir = os.path.join(temp_dir, "spoiled")
+    
+    os.makedirs(fresh_dir, exist_ok = True)
+    os.makedirs(spoiled_dir, exist_ok = True)
+    
+    allowed_ext = ('.jpg', '.jpeg', '.png')
+    counter = 0
+    
+    # Iterate through raw dataset folder
+    for root, dirs, files in os.walk(raw_dir):
+        folder_name = os.path.basename(root).lower()
+        
+        # Determine if folder is fresh/spoiled
+        if "fresh" in folder_name or "good" in folder_name:
+            target = fresh_dir
+        elif "rotten" in folder_name or "spoiled" in folder_name or "bad" in folder_name:
+            target = spoiled_dir
+        else:
+            continue # skip folders that don't match either
+        
+        # Copy images into temp folder (rename to avoid collisions)
+        for file in files:
+            if file.lower().endswith(allowed_ext):
+                src = os.path.join(root, file)
+                new_name = f"{counter}_{file}"
+                dst = os.path.join(target, new_name)
+                
+                shutil.copy2(src, dst)
+                counter += 1
+    
+    # Debugging
+    # print("Temporary dataset created at:", temp_dir)
+    
+    # Return temp directory path for splitting 
+    return temp_dir
 
 def main():
     """
