@@ -99,6 +99,25 @@ class EfficientNetFineTune(nn.Module):
         3. Optionally freeze all backbone parameters (feature extractor).
         4. Replace classifier[1] with a Linear layer to match num_classes.
         """
+
+        super().__init__()
+        model_fn = getattr(models, model_name)
+
+        if pretrained:
+            weights = "DEFAULT"
+        else:
+            weights = None
+        
+        self.model = model_fn(weights=weights)
+
+        if(freeze_backbone):
+            for param in self.model.features.parameters():
+                param.requires_grad = False
+        
+        in_features = self.model.classifier[1].in_features
+
+        self.model.classifier[1] = nn.Linear(in_features, num_classes)
+
     
     def forward(self, x):
         """Forward pass through the underlying torchvision model."""
