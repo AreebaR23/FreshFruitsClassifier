@@ -15,7 +15,7 @@ from typing import Optional
 
 
 class BaselineCNN(nn.Module):
-    """Building Baseline CNN model from scratch."""
+    """Baseline CNN model built from scratch."""
     
     def __init__(self, num_classes: int = 2, dropout_p: float = 0.5, lightweight: bool = False):
         """
@@ -33,7 +33,36 @@ class BaselineCNN(nn.Module):
         5. Compute the flattened feature size after pooling to size FC layers.
         6. Create FC layers that end with num_classes outputs.
         """
+        super(BaselineCNN, self).__init__()
         
+        # Use smaller filters for lightweight version
+        filters = [16, 32, 64, 128] if lightweight else [32, 64, 128, 256]
+        
+        # Convolutional layers
+        self.conv1 = nn.Conv2d(3, filters[0], kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm2d(filters[0])
+        
+        self.conv2 = nn.Conv2d(filters[0], filters[1], kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm2d(filters[1])
+        
+        self.conv3 = nn.Conv2d(filters[1], filters[2], kernel_size=3, padding=1)
+        self.bn3 = nn.BatchNorm2d(filters[2])
+        
+        self.conv4 = nn.Conv2d(filters[2], filters[3], kernel_size=3, padding=1)
+        self.bn4 = nn.BatchNorm2d(filters[3])
+        
+        # Pooling and dropout
+        self.pool = nn.MaxPool2d(2, 2)
+        self.adaptive_pool = nn.AdaptiveAvgPool2d((4, 4))
+        self.dropout = nn.Dropout(dropout_p)
+        
+        # Fully connected layers
+        # Adaptive pooling keeps FC input size stable across image sizes
+        fc_input = filters[3] * 4 * 4
+        fc_hidden = 256 if lightweight else 512
+        self.fc1 = nn.Linear(fc_input, fc_hidden)
+        self.fc2 = nn.Linear(fc_hidden, 64 if lightweight else 128)
+        self.fc3 = nn.Linear(64 if lightweight else 128, num_classes)
     
     def forward(self, x):
         """
@@ -43,7 +72,30 @@ class BaselineCNN(nn.Module):
         3. Pass through FC layers with ReLU + dropout.
         4. Return logits (raw scores) for each class.
         """
-
+        # Block 1
+        x = self.pool(F.relu(self.bn1(self.conv1(x))))
+        
+        # Block 2
+        x = self.pool(F.relu(self.bn2(self.conv2(x))))
+        
+        # Block 3
+        x = self.pool(F.relu(self.bn3(self.conv3(x))))
+        
+        # Block 4
+        x = self.pool(F.relu(self.bn4(self.conv4(x))))
+        
+        # Adaptive pool + flatten
+        x = self.adaptive_pool(x)
+        x = x.view(x.size(0), -1)
+        
+        # Fully connected layers
+        x = F.relu(self.fc1(x))
+        x = self.dropout(x)
+        x = F.relu(self.fc2(x))
+        x = self.dropout(x)
+        x = self.fc3(x)
+        
+        return x
 
 class ResNetFineTune(nn.Module):
     """ResNet model with fine-tuning capability."""
@@ -151,6 +203,25 @@ def get_model(
     Returns:
         PyTorch model
     """
+    if model_type == 'baseline':
+        return BaselineCNN(num_classes=num_classes, **kwargs)
+    elif model_type.startswith('resnet'):
+        return ResNetFineTune(
+            num_classes=num_classes,
+            model_name=model_type,
+            pretrained=pretrained,
+            freeze_backbone=freeze_backbone
+        )
+    elif model_type.startswith('efficientnet'):
+        return EfficientNetFineTune(
+            num_classes=num_classes,
+            model_name=model_type,
+            pretrained=pretrained,
+            freeze_backbone=freeze_backbone
+        )
+    else:
+        raise ValueError(f"Unsupported model type: {model_type}")
+
 
 
 def count_parameters(model: nn.Module) -> int:
