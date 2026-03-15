@@ -29,6 +29,44 @@ def train_epoch(model, loader, criterion, optimizer, device):
        - Update running statistics and display in progress bar.
     4. Compute epoch-level loss/accuracy and return them.
     """
+    model.train()
+    running_loss = 0.0
+    correct = 0
+    total = 0
+
+    progress_bar = tqdm(loader, desc="Training", leave=False)
+    for inputs, labels in progress_bar:
+        inputs = inputs.to(device)
+        labels = labels.to(device)
+
+        optimizer.zero_grad()
+
+        outputs = model(inputs)
+
+        loss = criterion(outputs,labels)
+
+        loss.backward()
+        optimizer.step()
+
+        running_loss += loss.item() * inputs.size(0)
+
+        _,pred = torch.max(outputs, 1)
+
+        correct += (pred == labels).sum().item()
+
+        total += labels.size(0)
+
+        progress_bar.set_postfix({'loss': loss.item(), 'accuracy': correct/total})
+
+    epoch_loss = running_loss/total
+    epoch_acc = correct/total
+
+    return epoch_loss, epoch_acc
+
+
+
+
+
 
 def validate(model, loader, criterion, device):
     """Validate the model.
