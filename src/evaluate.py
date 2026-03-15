@@ -43,6 +43,51 @@ def evaluate_model(model, loader, device, class_names=['fresh', 'spoiled']):
     Returns:
         Dictionary containing metrics and predictions
     """
+    model.eval()
+    
+    all_preds = []
+    all_labels = []
+    all_probs = []
+    
+    with torch.no_grad():
+        for inputs, labels in tqdm(loader):
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            outputs = model(inputs)
+            probs = torch.softmax(outputs, dim = 1)
+            preds = torch.argmax(probs, dim = 1)
+            
+            all_preds.extend(preds.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+            all_probs.extend(probs.cpu().numpy())
+            
+    all_preds = np.array(all_preds)
+    all_labels = np.array(all_labels)
+    
+    acc = accuracy_score(all_labels, all_preds)
+    precision = precision_score(all_labels, all_preds, average = 'binary')
+    recall = recall_score(all_labels, all_preds, average = 'binary')
+    f1 = f1_score(all_labels, all_preds, average = 'binary')
+    cm = confusion_matrix(all_labels, all_preds)
+    
+    print("\n Evaluation Results")
+    print("-------------------")
+    print(f"Accuracy: {acc: .4f}")
+    print(f"Precision: {precision: .4f}")
+    print(f"Recall: {recall: .4f}")
+    print(f"F1 Score: {f1: .4f} \n")
+    print(classification_report(all_labels, all_preds, target_names = class_names))
+    
+    return{
+        "accuracy": acc,
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+        "confusion_matrix": cm,
+        "predictions": all_preds,
+        "labels": all_labels,
+        "probabilities": np.array(all_probs)
+    }
 
 
 def plot_confusion_matrix(cm, class_names, save_path=None):
@@ -56,6 +101,27 @@ def plot_confusion_matrix(cm, class_names, save_path=None):
     5. If save_path is provided, save the figure before showing it.
     6. Call plt.show() to render interactively.
     """
+    plt.figure(figsize = (8, 6))
+    
+    sns.heatmap(
+        cm,
+        annot = True,
+        fmt = "d",
+        cmap = "Blues",
+        xticklabels = class_names,
+        yticklabels = class_names
+    )
+    
+    plt.xlabel("Predicted Label")
+    plt.ylabel("True Label")
+    plt.title("Confusion Matrix")
+    
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path)
+    
+    plt.show()
 
 
 def plot_training_history(history, save_path=None):
@@ -69,7 +135,32 @@ def plot_training_history(history, save_path=None):
     5. Use tight_layout to avoid overlap.
     6. Optionally save to disk, then display with plt.show().
     """
+    plt.figure(figsize = (10, 4))
     
+    plt.subplot(1, 2, 1)
+    plt.plot(history["train_loss"], label = "Train Loss")
+    plt.plot(history["val_loss"], label = "Val Loss")
+    plt.title("Loss")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.legend()
+    plt.grid(True)
+    
+    plt.subplot(1, 2, 2)
+    plt.plot(history["train_acc"], label = "Train Acc")
+    plt.plot(history["val_acc"], label = "Val Acc")
+    plt.title("Accuracy")
+    plt.xlabel("Epoch")
+    plt.ylabel("Accuracy")
+    plt.legend()
+    plt.grid(True)
+    
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path)
+        
+    plt.show()
 
 def compare_models(results_dict, save_path=None):
     """
@@ -89,6 +180,35 @@ def compare_models(results_dict, save_path=None):
         save_path: Path to save comparison plot
     """
     
+    models = list(results_dict.keys())
+    metrics = ["accuracy", "precision", "recall", "f1"]
+    values = {m: [results_dict[model] [m] for model in models] for m in metrics}
+    
+    x = np.arange(len(models))
+    width = 0.2
+    
+    plt.figure(figsize = (10, 6))
+    
+    for i, metric in enumerate(metrics):
+        plt.bar(x + i * width, values[metric], width, label = metric)
+        
+    plt.xticks(x + width * 1.5, models)
+    plt.ylim(0, 1)
+    plt.ylabel("Score")
+    plt.title("Model Comparison")
+    plt.legend()
+    
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path)
+        
+    plt.show()
+    
+    print("\n Model Comparison:")
+    for model in models:
+        print(model, results_dict[model])
+    
 
 def find_misclassified(model, loader, device, num_samples=10):
     """Find and return misclassified samples.
@@ -103,6 +223,31 @@ def find_misclassified(model, loader, device, num_samples=10):
     5. Stop early once num_samples have been collected.
     6. Return a list of dicts for downstream visualization.
     """
+    model.eval()
+    misclassified = []
+    
+    with torch.no_grad():
+        for inputs, labels in loader:
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            outputs = model(inputs)
+            probs = torch.softmax(outputs, dim = 1)
+            preds = torch.argmax(probs, dim = 1)
+            
+            mask = preds != labels
+            
+            for i in range(len(inputs)):
+                if mask[i]:
+                    misclassified.append({
+                        "image": inputs[i].cpu(),
+                        "true": labels[i].item(),
+                        "pred": preds[i].item(),
+                        "confidence": probs[i] [preds[i]].item()
+                    })
+                    if len(misclassified) >= num_samples:
+                        return misclassified
+                    
+    return misclassified
    
 
 def _denormalize(image_tensor, mean=None, std=None):
@@ -144,6 +289,53 @@ def save_prediction_grid(
        "Pred: <label> / True: <label>".
     5. Save to save_path if provided and show the figure.
     """
+    model.eval()
+    
+    images = []
+    preds = []
+    labels = []
+    
+    with torch.no_grad():
+        for inputs, targets in loader:
+            inputs = inputs.to(device)
+            outputs = model(inputs)
+            probs = torch.softmax(outputs, dim = 1)
+            predictions = torch.argmax(probs, dim = 1)
+            
+            for i in range(len(inputs)):
+                images.append(_denormalize(inputs[i]))
+                preds.append(predictions[i].item())
+                labels.append(targets[i].item())
+                
+                if len(images) >= num_images:
+                    break
+            
+            if len(images) >= num_images:
+                break
+    
+    cols = 4
+    rows = int(np.ceil(num_images / cols))
+    
+    plt.figure(figsize = (12, 8))
+    
+    for i in range(len(images)):
+        plt.subplot(rows, cols, i + 1)
+        img = images[i].permute(1, 2, 0).numpy()
+        plt.imshow(img)
+        plt.axis("off")
+        
+        pred_label = class_names[preds[i]]
+        true_label = class_names[labels[i]]
+        
+        plt.title(f"Pred: {pred_label}\n True: {true_label}")
+    
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path)
+        
+    plt.show()
+    
 
 
 def main():
@@ -160,7 +352,40 @@ def main():
     7. Plot and save the confusion matrix.
     8. Persist results to disk for later analysis.
     """
-   
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument("--model", type = str, required = True)
+    parser.add_argument("--checkpoint", type = str, required = True)
+    parser.add_argument("--data_dir", type = str, required = True)
+    parser.add_argument("--batch_size", type = int, default = 32)
+    
+    args = parser.parse_args()
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    transforms = get_transforms(train = False)
+    
+    dataset = FreshSenseDataset(args.data_dir, transform = transforms)
+    
+    loader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size = args.batch_size,
+        shuffle = False
+    )
+    
+    model = get_model(args.model)
+    model = load_checkpoint(model, args.checkpoint, device)
+    
+    results = evaluate_model(model, loader, device)
+    results_dir = Path("Confusion Results")
+    results_dir.mkdir(exist_ok = True)
+    
+    plot_confusion_matrix(
+        results["confusion_matrix"],
+        ["fresh", "spoiled"],
+        save_path = results_dir / "confusion_matrix.png"
+    )
+
 
 if __name__ == '__main__':
     main()
