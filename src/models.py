@@ -121,8 +121,23 @@ class ResNetFineTune(nn.Module):
         4. Replace the final fully connected layer with a new Linear layer
            that outputs num_classes logits.
         """
-       
-    
+        super().__init__()
+        model_fn = getattr(models, model_name)
+        
+        if pretrained:
+            weights = "DEFAULT"
+        else:
+            weights = None
+            
+        self.model = model_fn(weights = weights)
+        
+        if freeze_backbone:
+            for param in self.model.parameters():
+                param.requires_grad = False
+                
+        in_features = self.model.fc.in_features
+        self.model.fc = nn.Linear(in_features, num_classes)
+        
     def forward(self, x):
         """Forward pass through the underlying torchvision model."""
         return self.model(x)
