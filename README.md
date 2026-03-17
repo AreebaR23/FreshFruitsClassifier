@@ -1,217 +1,327 @@
-# FreshFruitsClassifier : Food Freshness and Quality Classification
-
-In this project we aim to train a convolutional neural network that can accuractely classify fruit images as fresh or spoiled. As a possible addition to this project we plan to add a model that predicts the shelf life of a fruit given the image of that fruit.
-
+# FreshFruitsClassifier: Food Freshness and Quality Classification
 
 ## Project Overview
 
-**Aim:** Build a CNN-based image classification system that detects whether a food item is fresh or spoiled using deep learning.
+This project trains deep learning models to classify fruit images as **fresh** or **spoiled** using convolutional neural networks (CNNs). It includes:
 
-**Key Features:**
-- Baseline CNN model built from scratch
-- Pretrained model fine-tuning (ResNet, EfficientNet)
-- Comprehensive data augmentation pipeline
-- Detailed evaluation metrics and visualization
-- Model comparison and analysis
+- A **baseline CNN** model built from scratch.
+- **Transfer learning** models based on **ResNet18** and **EfficientNet-B0**.
+- A **data preparation pipeline** that organizes Kaggle datasets into standard `train/`, `val/`, and `test/` splits.
+- **Evaluation utilities** for computing metrics and generating visualizations (confusion matrices, training curves, prediction grids).
 
-##  Project Structure
+The goal is for anyone to be able to **download the data, preprocess it, train the models, and reproduce the main results** using only the instructions in this repository.
 
+---
+
+## Repository Structure
+
+```text
+FreshFruitsClassifier/
+├── data/                   # Datasets (raw + processed)
+│   ├── raw/                # Original Kaggle downloads
+│   ├── processed/          # Preprocessed train/val/test splits
+│   └── README.md           # Dataset download and setup instructions
+├── models/                 # Saved model checkpoints
+├── notebooks/              # Jupyter notebooks for exploration/demo
+├── results/                # Evaluation outputs and visualizations
+├── src/                    # Source code
+│   ├── data_loader.py      # Data loading and preprocessing
+│   ├── models.py           # Model architectures (baseline, ResNet, EfficientNet)
+│   ├── train.py            # Training script
+│   ├── evaluate.py         # Evaluation and plotting utilities
+│   ├── utils.py            # Helper functions (checkpointing, metrics, etc.)
+│   └── prepare_data.py     # Dataset preparation script
+├── requirements.txt        # Python dependencies
+├── report.md               # Project report (detailed write-up)
+└── README.md               # This file
 ```
-FreshSense/
-├── data/                   # Dataset storage
-│   ├── raw/               # Original Kaggle datasets
-│   ├── processed/         # Organized train/val/test splits
-│   │   ├── train/
-│   │   ├── val/
-│   │   └── test/
-│   └── README.md
-├── models/                # Saved model checkpoints
-├── notebooks/             # Jupyter notebooks for experiments
-├── src/                   # Source code
-│   ├── data_loader.py    # Data loading and preprocessing
-│   ├── models.py         # Model architectures
-│   ├── train.py          # Training script
-│   ├── evaluate.py       # Evaluation utilities
-│   ├── utils.py          # Helper functions
-│   └── prepare_data.py   # Dataset preparation
-├── results/              # Experiment results and visualizations
-├── requirements.txt      # Python dependencies
-└── README.md            # This file
-```
 
-### Prerequisites
+---
 
-- Python 3.8+
-- CUDA-capable GPU (recommended)
-- Kaggle account for dataset download
+## Setup Instructions
 
-### Installation
+### 1. Create and activate a virtual environment
 
-# 1. Clone the repository:
+From the project root (`FreshFruitsClassifier/`):
+
 ```bash
-git clone <repository-url>
-cd freshsense
-```
-# 2. python3 -m venv .venv
-
-# 3. Activate virtual environment
+python3 -m venv .venv
 source .venv/bin/activate
-
-# 4. Install dependencies
-pip install -r requirements.txt
-
-# 5. Verify installation
-python -c "import torch; print(f'PyTorch: {torch.__version__}')"
-
-6. Set up Kaggle API:
-```bash
-# Install Kaggle CLI
-pip install kaggle
-
-# Place your kaggle.json in ~/.kaggle/
-# Get it from: https://www.kaggle.com/account
 ```
 
-##  Datasets
+On Windows (PowerShell):
 
-We will be using two Kaggle datasets:
+```powershell
+python -m venv .venv
+.venv\\Scripts\\Activate.ps1
+```
 
-1. **Fruits Fresh and Rotten for Classification**
-   - URL: https://www.kaggle.com/datasets/sriramr/fruits-fresh-and-rotten-for-classification
+### 2. Install dependencies
 
-2. **Fruits Dataset**
-   - URL: https://www.kaggle.com/datasets/moltean/fruits
+```bash
+pip install -r requirements.txt
+```
 
-### Download and Prepare the data
+This installs PyTorch, torchvision, matplotlib, seaborn, and any other libraries required by the code.
+
+---
+
+## Dataset: Download and Preprocessing
+
+All dataset-related instructions are also summarized in `data/README.md`.
+
+### 1. Download datasets from Kaggle
+
+We use two public datasets:
+
+1. **Fruits Fresh and Rotten for Classification**  
+   URL: https://www.kaggle.com/datasets/sriramr/fruits-fresh-and-rotten-for-classification
+
+2. **Fruits-360**  
+   URL: https://www.kaggle.com/datasets/moltean/fruits
+
+First, install and configure the Kaggle CLI (once):
+
+```bash
+pip install kaggle
+```
+
+Set up your Kaggle API credentials (follow steps on https://www.kaggle.com/account), then in the `data/` directory run:
 
 ```bash
 cd data
 
-# Download the datasets
 kaggle datasets download -d sriramr/fruits-fresh-and-rotten-for-classification
 kaggle datasets download -d moltean/fruits
 
-# Extract to raw/ directory
 unzip fruits-fresh-and-rotten-for-classification.zip -d raw/
 unzip fruits.zip -d raw/
 
-# Organize into train/val/test splits
-cd ../src
-
-# Prepare small dataset (300 samples/class)
-python prepare_data.py --max_samples 300
-
-
-## Training
-
-### Train Baseline CNN
-
-```bash
-python train.py --model baseline --lightweight --batch_size 16 --epochs 15 --device cpu
-
+cd ..
 ```
 
-### Train with Pretrained ResNet50
+### 2. Preprocess the data
+
+From the project root:
 
 ```bash
-python train.py --model resnet50 --batch_size 32 --epochs 30
+cd src
+
+python prepare_data.py \
+    --raw_dir ../data/raw \
+    --processed_dir ../data/processed \
+    --max_samples 200
+
+cd ..
 ```
 
-### Train with EfficientNet
+This script:
+
+- Reads the raw Kaggle datasets from `data/raw/`.
+- Creates a standardized directory structure in `data/processed/`:
+  - `train/fresh/`, `train/spoiled/`
+  - `val/fresh/`, `val/spoiled/`
+  - `test/fresh/`, `test/spoiled/`
+- Optionally subsamples to at most `--max_samples` images per class to keep experiments fast.
+
+### 3. Small Sample Dataset (Optional)
+
+If you prefer a minimal dataset for quick tests:
+
+- After running `prepare_data.py`, you can manually copy a handful of images (e.g., 10–20 per class) from `data/processed/train/` into a separate folder (e.g., `data/sample/`) and point `--raw_dir` or custom scripts there.
+- Alternatively, reduce `--max_samples` (e.g., `--max_samples 50`) to create a very small processed dataset for rapid prototyping.
+
+The repository itself does not include the full Kaggle datasets (due to size and licensing), but the instructions above allow you to reconstruct the exact splits.
+
+---
+
+## How to Train the Models
+
+All training is performed via `src/train.py`. Make sure your virtual environment is active and data is preprocessed.
+
+From the project root:
+
+```bash
+cd src
+```
+
+### 1. Train the baseline CNN (lightweight)
+
+```bash
+python train.py \
+    --model baseline \
+    --lightweight \
+    --image_size 128 \
+    --batch_size 16 \
+    --epochs 8 \
+    --num_workers 0 \
+    --device cpu \
+    --reuse_if_exists
+```
+
+### 2. Train the baseline CNN (full, smaller images)
+
+```bash
+python train.py \
+    --model baseline \
+    --image_size 96 \
+    --batch_size 16 \
+    --epochs 8 \
+    --reuse_if_exists
+```
+
+### 3. Train ResNet18 (full fine-tuning)
+
+```bash
+python train.py \
+    --model resnet18 \
+    --image_size 128 \
+    --batch_size 16 \
+    --epochs 5 \
+    --num_workers 0 \
+    --no_augment \
+    --reuse_if_exists
+```
+
+### 4. Train ResNet18 (frozen backbone)
+
+```bash
+python train.py \
+    --model resnet18 \
+    --freeze_backbone \
+    --image_size 128 \
+    --batch_size 16 \
+    --epochs 5 \
+    --num_workers 0 \
+    --no_augment \
+    --reuse_if_exists
+```
+
+### 5. Train baseline without augmentation
+
+```bash
+python train.py \
+    --model baseline \
+    --no_augment \
+    --batch_size 16 \
+    --epochs 5 \
+    --num_workers 0 \
+    --reuse_if_exists
+```
+
+### 6. Train EfficientNet-B0 (transfer learning)
 
 ```bash
 python train.py \
     --model efficientnet_b0 \
-    --data_dir ../data/processed \
-    --save_dir ../models \
-    --epochs 30 \
-    --batch_size 32 \
-    --lr 0.0001
+    --image_size 128 \
+    --batch_size 16 \
+    --epochs 5 \
+    --num_workers 0 \
+    --reuse_if_exists
 ```
 
-### Training Options
+Each run will save model checkpoints and training history in the `models/` directory (e.g., `baseline_best.pth`, `resnet18_best.pth`, `efficientnet_b0_best.pth`, and corresponding `*_history.pth` files).
 
-- `--model`: Model architecture (baseline, resnet18, resnet50, efficientnet_b0)
-- `--epochs`: Number of training epochs
-- `--batch_size`: Batch size
-- `--lr`: Learning rate
-- `--device`: Device to use (cuda/cpu)
+---
 
-## Evaluation
+## How to Evaluate the Models
 
-### Evaluate a Trained Model
+Evaluation and result visualization are handled by `src/evaluate.py`. Make sure you have trained (or downloaded) the corresponding checkpoints in `models/`.
+
+From `src/`:
+
+### 1. Evaluate the baseline model
 
 ```bash
-cd src
 python evaluate.py \
-    --model resnet50 \
-    --checkpoint ../models/resnet50_best.pth \
+    --model baseline \
     --data_dir ../data/processed \
-    --results_dir ../results
+    --checkpoint ../models/baseline_best.pth \
+    --results_dir ../results \
+    --device cpu
 ```
 
-This will generate:
-- Accuracy, precision, recall, F1-score
-- Confusion matrix visualization
-- Classification report
-- Saved results for further analysis
+### 2. Evaluate baseline with prediction grid
 
-##  Results
+```bash
+python evaluate.py \
+    --model baseline \
+    --data_dir ../data/processed \
+    --checkpoint ../models/baseline_best.pth \
+    --results_dir ../results \
+    --device cpu \
+    --save_prediction_grid \
+    --num_grid_images 16
+```
 
-### Model Comparison
+### 3. Evaluate ResNet18
 
-| Model | Accuracy | Precision | Recall | F1-Score | Parameters |
-|-------|----------|-----------|--------|----------|------------|
-| Baseline CNN | TBD | TBD | TBD | TBD | ~2M |
-| ResNet50 | TBD | TBD | TBD | TBD | ~23M |
-| EfficientNet-B0 | TBD | TBD | TBD | TBD | ~4M |
+```bash
+python evaluate.py \
+    --model resnet18 \
+    --data_dir ../data/processed \
+    --checkpoint ../models/resnet18_best.pth \
+    --results_dir ../results \
+    --device cpu \
+    --save_prediction_grid \
+    --num_grid_images 16
+```
 
-*Results will be updated after training*
+### 4. Evaluate EfficientNet-B0
 
-## Implementation Details
+```bash
+python evaluate.py \
+    --model efficientnet_b0 \
+    --data_dir ../data/processed \
+    --checkpoint ../models/efficientnet_b0_best.pth \
+    --results_dir ../results \
+    --device cpu \
+    --save_prediction_grid \
+    --num_grid_images 16
+```
 
-### Data Augmentation
-- Random horizontal/vertical flips
-- Random rotation (±20°)
-- Color jittering (brightness, contrast, saturation, hue)
-- Random affine transformations
-- Normalization using ImageNet statistics
+These commands will:
 
-### Model Architectures
+- Compute quantitative metrics (accuracy, confusion matrix, etc.).
+- Save visualizations (confusion matrices, prediction grids, and optionally training curves) into the `results/` directory.
 
-**Baseline CNN:**
-- 4 convolutional blocks (32→64→128→256 filters)
-- Batch normalization after each conv layer
-- Max pooling (2×2)
-- 3 fully connected layers
-- Dropout (p=0.5)
+---
 
-**Transfer Learning:**
-- ResNet18/50/101
-- EfficientNet B0-B4
-- Fine-tuning last layers or full model
-- Optional backbone freezing
+## Expected Outputs
 
-### Hyperparameters
-- Optimizer: Adam
-- Learning rate: 1e-3 (baseline), 1e-4 (pretrained)
-- Batch size: 32
-- Image size: 224×224
-- Loss function: Cross-entropy
-- LR scheduler: ReduceLROnPlateau
+After following the steps above, you should have:
 
-## Notebooks
+- **Processed dataset** under `data/processed/` with `train/`, `val/`, `test/` splits.
+- **Trained models** in `models/`:
+  - `baseline_best.pth`, `baseline_final.pth`, `baseline_history.pth`
+  - `resnet18_best.pth`, `resnet18_final.pth`, `resnet18_history.pth`
+  - `efficientnet_b0_best.pth`, `efficientnet_b0_final.pth`, `efficientnet_b0_history.pth`
+- **Evaluation results** in `results/`:
+  - Metric summaries (accuracy, confusion matrix values).
+  - Confusion matrix plots.
+  - Prediction grid images showing predictions on sample test images.
+  - Training/validation loss and accuracy curves (when plotted using `plot_training_history`).
 
-Explore the `notebooks/` directory for:
-- Exploratory data analysis
-- Model training experiments
-- Results visualization
-- Error analysis
+---
 
-## Authors
+## Reproducing the Results 
 
-- Areeba Rashid
-- Esha Sarfraz
-- Vishakha Mishra
+1. **Clone the repository and set up environment**
+   - Create and activate a virtualenv.
+   - Install dependencies from `requirements.txt`.
 
-**Happy Classifying! 🍎🍌🍊**
+2. **Download and preprocess data**
+   - Use Kaggle CLI to download the two datasets into `data/`.
+   - Unzip into `data/raw/`.
+   - Run `src/prepare_data.py` to create `data/processed/`.
+
+3. **Train models**
+   - Run one or more `python train.py` commands as listed above.
+
+4. **Evaluate models**
+   - Run `python evaluate.py` for baseline, ResNet18, and EfficientNet-B0.
+
+5. **Inspect outputs**
+   - Open figures in `results/` (confusion matrices, prediction grids, curves).
+   - Optionally open `report.md` for a detailed write-up.
